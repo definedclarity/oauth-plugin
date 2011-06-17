@@ -26,7 +26,7 @@ module OAuth
         env["oauth_plugin"]=true
         strategies = []
         if token_string = oauth2_token(request)
-          token = Oauth2Token.find_by_token(token_string) if token_string
+          token = Oauth2Token.where(:token => token_string).first if token_string
           if token
             env["oauth.token"] = token
             env["oauth.version"] = 2
@@ -35,7 +35,7 @@ module OAuth
           end
 
         elsif oauth1_verify(request) do |request_proxy|
-            client_application = ClientApplication.find_by_key(request_proxy.consumer_key)
+            client_application = ClientApplication.where(:key => request_proxy.consumer_key).first
             env["oauth.client_application_candidate"] = client_application
             # Store this temporarily in client_application object for use in request token generation
             client_application.token_callback_url=request_proxy.oauth_callback if request_proxy.oauth_callback
@@ -43,7 +43,7 @@ module OAuth
             oauth_token = nil
             
             if request_proxy.token
-              oauth_token = client_application.tokens.first(:conditions=>{:token => request_proxy.token})
+              oauth_token = client_application.tokens.where(:token => request_proxy.token).first
               if oauth_token.respond_to?(:provided_oauth_verifier=)
                 oauth_token.provided_oauth_verifier=request_proxy.oauth_verifier 
               end
@@ -51,7 +51,7 @@ module OAuth
             end
             # return the token secret and the consumer secret
             [(oauth_token.nil? ? nil : oauth_token.secret), (client_application.nil? ? nil : client_application.secret)]
-        end
+          end
           if env["oauth.token_candidate"]
             env["oauth.token"] = env["oauth.token_candidate"]
             strategies << :oauth10_token
@@ -86,6 +86,7 @@ module OAuth
       end
 
       def oauth2_token(request)
+        return false
         request.params["oauth_token"] ||
           request.env["HTTP_AUTHORIZATION"] &&
             request.env["HTTP_AUTHORIZATION"][/^(OAuth|Token) ([^\s]*)$/] && $2
